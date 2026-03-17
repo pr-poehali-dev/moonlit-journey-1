@@ -8,6 +8,11 @@ type Player = {
   team: "home" | "away"
 }
 
+type Ball = {
+  x: number
+  y: number
+}
+
 const initialPlayers: Player[] = [
   // Home team (красные) — 4-3-3
   { id: 1, x: 50, y: 88, number: 1, team: "home" },
@@ -36,8 +41,11 @@ const initialPlayers: Player[] = [
   { id: 22, x: 64, y: 64, number: 11, team: "away" },
 ]
 
+const BALL_ID = -1
+
 export function TechnologySection() {
   const [players, setPlayers] = useState<Player[]>(initialPlayers)
+  const [ball, setBall] = useState<Ball>({ x: 50, y: 50 })
   const [dragging, setDragging] = useState<number | null>(null)
   const fieldRef = useRef<HTMLDivElement>(null)
 
@@ -45,39 +53,43 @@ export function TechnologySection() {
     setDragging(id)
   }
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (dragging === null || !fieldRef.current) return
+  const getPos = (clientX: number, clientY: number) => {
+    if (!fieldRef.current) return { x: 50, y: 50 }
     const rect = fieldRef.current.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width) * 100
-    const y = ((e.clientY - rect.top) / rect.height) * 100
-    setPlayers((prev) =>
-      prev.map((p) =>
-        p.id === dragging
-          ? { ...p, x: Math.max(2, Math.min(98, x)), y: Math.max(2, Math.min(98, y)) }
-          : p
-      )
-    )
+    return {
+      x: Math.max(2, Math.min(98, ((clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(2, Math.min(98, ((clientY - rect.top) / rect.height) * 100)),
+    }
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (dragging === null) return
+    const pos = getPos(e.clientX, e.clientY)
+    if (dragging === BALL_ID) {
+      setBall(pos)
+    } else {
+      setPlayers((prev) => prev.map((p) => p.id === dragging ? { ...p, ...pos } : p))
+    }
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (dragging === null || !fieldRef.current) return
+    if (dragging === null) return
     e.preventDefault()
     const touch = e.touches[0]
-    const rect = fieldRef.current.getBoundingClientRect()
-    const x = ((touch.clientX - rect.left) / rect.width) * 100
-    const y = ((touch.clientY - rect.top) / rect.height) * 100
-    setPlayers((prev) =>
-      prev.map((p) =>
-        p.id === dragging
-          ? { ...p, x: Math.max(2, Math.min(98, x)), y: Math.max(2, Math.min(98, y)) }
-          : p
-      )
-    )
+    const pos = getPos(touch.clientX, touch.clientY)
+    if (dragging === BALL_ID) {
+      setBall(pos)
+    } else {
+      setPlayers((prev) => prev.map((p) => p.id === dragging ? { ...p, ...pos } : p))
+    }
   }
 
   const stopDrag = () => setDragging(null)
 
-  const reset = () => setPlayers(initialPlayers)
+  const reset = () => {
+    setPlayers(initialPlayers)
+    setBall({ x: 50, y: 50 })
+  }
 
   return (
     <section id="technology" className="py-20 bg-black">
@@ -91,7 +103,7 @@ export function TechnologySection() {
           </p>
         </div>
 
-        <div className="flex justify-center gap-6 mb-6 text-sm">
+        <div className="flex justify-center gap-6 mb-6 text-sm flex-wrap">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-white" />
             <span className="text-gray-300 font-space-mono">Твоя команда</span>
@@ -99,6 +111,10 @@ export function TechnologySection() {
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded-full bg-blue-500 border-2 border-white" />
             <span className="text-gray-300 font-space-mono">Соперник</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-lg leading-none">⚽</span>
+            <span className="text-gray-300 font-space-mono">Мяч</span>
           </div>
         </div>
 
@@ -164,6 +180,26 @@ export function TechnologySection() {
             <path d="M 40 990 A 20 20 0 0 0 60 1010" fill="none" stroke="white" strokeWidth="4" />
             <path d="M 640 990 A 20 20 0 0 1 620 1010" fill="none" stroke="white" strokeWidth="4" />
           </svg>
+
+          {/* Ball */}
+          <div
+            className="absolute flex items-center justify-center cursor-grab active:cursor-grabbing"
+            style={{
+              left: `${ball.x}%`,
+              top: `${ball.y}%`,
+              transform: "translate(-50%, -50%)",
+              zIndex: dragging === BALL_ID ? 50 : 20,
+              touchAction: "none",
+              fontSize: "clamp(18px, 3.5vw, 32px)",
+              lineHeight: 1,
+              filter: dragging === BALL_ID ? "drop-shadow(0 0 8px white)" : "drop-shadow(0 2px 4px rgba(0,0,0,0.8))",
+              transition: "filter 0.15s",
+            }}
+            onMouseDown={() => handleMouseDown(BALL_ID)}
+            onTouchStart={() => handleMouseDown(BALL_ID)}
+          >
+            ⚽
+          </div>
 
           {/* Players */}
           {players.map((player) => (
